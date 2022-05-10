@@ -1,8 +1,10 @@
+import queue
 from threading import Thread
-import urllib.request
+import requests
 import time
 from concurrent.futures import ThreadPoolExecutor
 import re
+from queue import Queue
 
 
 def openLink(url):
@@ -10,54 +12,37 @@ def openLink(url):
     patternHref = r'href *= *"([^"]*)"'
     urlDomain = re.search(patternUrlDomain, url).group(0)
 
-    listLinks = [url]
+    queueLinks = Queue(maxsize=0)
+    queueLinks.put(url)
     setLinks = {url}
 
-    id = 0
+    f = open('listaLinkuri.txt', 'w')
 
-    while id < len(listLinks):
-        currLink = listLinks[id]
+    while not queueLinks.empty():
+        currLink = queueLinks.get()
+        f.write(currLink)
 
-        currWebsite = urllib.request.urlopen(currLink)
-        currText = currWebsite.read().decode('utf-8')
+        currText = requests.get(url).text
         currListLinks = re.findall(patternHref, currText)
-        newCurrListLinks = []
-        addedListLinks = []
 
         for link in currListLinks:
             linkDomain = re.search(patternUrlDomain, link)
 
             if not linkDomain:
-                try:
-                    currWebsite = urllib.request.urlopen(urlDomain + link)
-                    newCurrListLinks.append(urlDomain + link)
-                    continue
-                except urllib.error.URLError as e:
-                    continue
+                if urlDomain + link not in setLinks:
+                    response = requests.get(urlDomain + link)
+                    if response.status_code == 200:
+                        queueLinks.put(urlDomain + link)
+                continue
 
             linkDomain = linkDomain.group(0)
 
-            if linkDomain != urlDomain:
+            if linkDomain != urlDomain or link in setLinks:
                 continue
 
-            try:
-                currWebsite = urllib.request.urlopen(link)
-                newCurrListLinks.append(link)
-            except urllib.error.URLError as e:
-                continue
-
-        for link in newCurrListLinks:
-            if link not in setLinks:
-                setLinks.add(link)
-                # f.write(f'{link}\n')
-                addedListLinks.append(link)
-
-        listLinks.extend(addedListLinks)
-        id += 1
-
-    with open('listLinkuri.txt', 'w') as f:
-        for link in listLinks:
-            f.write(f'{link}\n')
+            response = requests.get(link)
+            if response.status_code == 200:
+                queueLinks.put(link)
 
 
 if __name__ == '__main__':
