@@ -5,8 +5,9 @@ import re
 
 def openLink(url):
     patternUrlDomain = r'https?://[\w_-]+(?:(?:\.[\w_-]+)+)/'
-    pattern
-    urlDomain = re.search(pattern, url).group(0)
+    patternHref = r'href *= *"([^"]*)"'
+    urlDomain = re.search(patternUrlDomain, url).group(0)
+    print(urlDomain)
 
     try:
         website = urllib.request.urlopen(url)
@@ -17,27 +18,38 @@ def openLink(url):
     text = website.read().decode('utf-8')
     # web = BeautifulSoup(text, 'html.parser')
     # print(web.prettify())
-    listLinks = re.findall(pattern, text)
+    listLinks = re.findall(patternHref, text)
     newListLinks = []
     dictListLinks = {}
 
+    f = open("listaLinkuri.txt", "w")
+
     for link in listLinks:
-        linkDomain = pattern.finditer(link).group(0)
+        linkDomain = re.search(patternUrlDomain, link)
+
+        if not linkDomain:
+            try:
+                currWebsite = urllib.request.urlopen(urlDomain + link)
+                newListLinks.append(urlDomain + link)
+                continue
+            except urllib.error.URLError as e:
+                continue
+
+        linkDomain = linkDomain.group(0)
 
         if linkDomain != urlDomain:
             continue
 
         try:
             currWebsite = urllib.request.urlopen(link)
+            newListLinks.append(link)
         except urllib.error.URLError as e:
             continue
-
-        if not link.startswith(urlDomain):
-            newListLinks.append(urlDomain + link)
 
     listLinks = newListLinks
 
     for link in listLinks:
+        f.write(f'{link}\n')
         dictListLinks[link] = 1
 
     id = 0
@@ -47,38 +59,45 @@ def openLink(url):
 
         currWebsite = urllib.request.urlopen(currLink)
         currText = currWebsite.read().decode('utf-8')
-        currListLinks = re.findall(r'href *= *"([^"]*)"', currText)
+        currListLinks = re.findall(patternHref, currText)
         newCurrListLinks = []
         addedListLinks = []
 
         for link in currListLinks:
-            linkDomain = pattern.finditer(link).group(0)
+            linkDomain = re.search(patternUrlDomain, link)
+
+            if not linkDomain:
+                try:
+                    currWebsite = urllib.request.urlopen(urlDomain + link)
+                    newListLinks.append(urlDomain + link)
+                    continue
+                except urllib.error.URLError as e:
+                    continue
+
+            linkDomain = linkDomain.group(0)
 
             if linkDomain != urlDomain:
                 continue
 
             try:
                 currWebsite = urllib.request.urlopen(link)
+                newListLinks.append(link)
             except urllib.error.URLError as e:
                 continue
 
-            if not link.startswith(urlDomain):
-                newCurrListLinks.append(urlDomain + link)
-
         for link in newCurrListLinks:
-            if dictListLinks.get(link, 0) != 0:
+            if not dictListLinks.get(link, 0):
                 dictListLinks[link] = 1
+                f.write(f'{link}\n')
                 addedListLinks.append(link)
 
         listLinks.extend(addedListLinks)
         id += 1
-
-    f = open("listaLinkuri.txt", "w")
 
     for link in listLinks:
         f.write(f'{link}\n')
 
 
 if __name__ == '__main__':
-    openLink("https://www.geeksforgeeks.org/")
+    openLink("https://tinkerwatches.com/")
     print("something!")
