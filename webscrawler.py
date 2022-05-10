@@ -19,7 +19,7 @@ def openLink(url: str) -> None:
 
     while not queueLinks.empty():
         currLink = queueLinks.get()
-        f.write(currLink)
+        f.write(f'{currLink}\n')
 
         currText = requests.get(url).text
         currListLinks = re.findall(patternHref, currText)
